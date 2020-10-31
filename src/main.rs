@@ -32,7 +32,7 @@ fn main() -> ! {
     let pins = dr.pins;
 
     // Configure clocks
-    let clocks = hifive1::clock::configure(p.PRCI, p.AONCLK, 100.mhz().into());
+    let clocks = hifive1::clock::configure(p.PRCI, p.AONCLK, 320.mhz().into());
 
     // Configure UART for stdout
     hifive1::stdout::configure(
