@@ -38,16 +38,17 @@ fn main() -> ! {
     hifive1::stdout::configure(p.UART0, pin!(pins, uart0_tx), pin!(pins, uart0_rx), 115_200.bps(), clocks);
 
     // get all 3 led pins in a tuple (each pin is it's own type here)
-    let rgb_pins = pins!(pins, (led_red, led_green, led_blue));
-    let mut tleds = hifive1::rgb(rgb_pins.0, rgb_pins.1, rgb_pins.2);
+    let rgb_pins = pins!(pins, (spi0_sck));
+    let mut blue = rgb_pins.into_inverted_output();
+    //let mut tleds = hifive1::rgb(rgb_pins, rgb_pins, rgb_pins);
 
     // get leds as the Led trait in an array so we can index them
-    let ileds: [&mut Led; 3] = [&mut tleds.0, &mut tleds.1, &mut tleds.2];
+    //let ileds: [&mut Led; 1] = [&mut tleds.0];
 
     // get the local interrupts struct
     let clint = dr.core_peripherals.clint;
 
-    let mut led_status = [true, true, true]; // start on red
+    let mut led_status = [true]; // start on red
     let mut current_led = 0; // start on red
 
     // get the sleep struct
@@ -55,15 +56,27 @@ fn main() -> ! {
 
     sprintln!("Starting blink loop");
 
-    const PERIOD: u32 = 1000; // 1s
+    const PERIOD: u32 = 200;
     loop {
         // toggle led
-        led_status[current_led] = toggle_led(ileds[current_led], led_status[current_led]);
+        //led_status[current_led] = toggle_led(ileds[current_led], led_status[current_led]);
+        led_status[current_led] = {
+            let status = led_status[current_led];
+            match status {
+                true => blue.set_high().unwrap(),
+                false => blue.set_low().unwrap(),
+            }
+
+            !status
+        };
+        sprintln!("Toggle led {} (period = {})", current_led, PERIOD);
 
         // increment index if we blinked back to blank
+        /*
         if led_status[current_led] {
             current_led = (current_led + 1) % 3
         }
+        */
 
         // sleep for 1
         sleep.delay_ms(PERIOD);
