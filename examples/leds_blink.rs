@@ -8,22 +8,12 @@
 
 extern crate panic_halt;
 
-use riscv_rt::entry;
-use hifive1::hal::prelude::*;
 use hifive1::hal::delay::Sleep;
+use hifive1::hal::prelude::*;
 use hifive1::hal::DeviceResources;
-use hifive1::{Led, pin, pins};
 use hifive1::sprintln;
-
-// switches led according to supplied status returning the new state back
-fn toggle_led(led: &mut Led, status: bool) -> bool {
-    match status {
-        true => led.on(),
-        false => led.off(),
-    }
-
-    !status
-}
+use hifive1::{pin, pins, Led};
+use riscv_rt::entry;
 
 #[entry]
 fn main() -> ! {
@@ -35,50 +25,38 @@ fn main() -> ! {
     let clocks = hifive1::clock::configure(p.PRCI, p.AONCLK, 320.mhz().into());
 
     // Configure UART for stdout
-    hifive1::stdout::configure(p.UART0, pin!(pins, uart0_tx), pin!(pins, uart0_rx), 115_200.bps(), clocks);
+    hifive1::stdout::configure(
+        p.UART0,
+        pin!(pins, uart0_tx),
+        pin!(pins, uart0_rx),
+        115_200.bps(),
+        clocks,
+    );
 
     // get all 3 led pins in a tuple (each pin is it's own type here)
     let rgb_pins = pins!(pins, (spi0_sck));
     let mut blue = rgb_pins.into_inverted_output();
-    //let mut tleds = hifive1::rgb(rgb_pins, rgb_pins, rgb_pins);
-
-    // get leds as the Led trait in an array so we can index them
-    //let ileds: [&mut Led; 1] = [&mut tleds.0];
 
     // get the local interrupts struct
     let clint = dr.core_peripherals.clint;
 
-    let mut led_status = [true]; // start on red
-    let mut current_led = 0; // start on red
+    let mut led_status = true;
 
     // get the sleep struct
     let mut sleep = Sleep::new(clint.mtimecmp, clocks);
 
     sprintln!("Starting blink loop");
 
-    const PERIOD: u32 = 200;
     loop {
-        // toggle led
-        //led_status[current_led] = toggle_led(ileds[current_led], led_status[current_led]);
-        led_status[current_led] = {
-            let status = led_status[current_led];
-            match status {
-                true => blue.set_high().unwrap(),
-                false => blue.set_low().unwrap(),
-            }
-
-            !status
-        };
-        sprintln!("Toggle led {} (period = {})", current_led, PERIOD);
-
-        // increment index if we blinked back to blank
-        /*
-        if led_status[current_led] {
-            current_led = (current_led + 1) % 3
+        match led_status {
+            true => blue.set_high().unwrap(),
+            false => blue.set_low().unwrap(),
         }
-        */
 
-        // sleep for 1
-        sleep.delay_ms(PERIOD);
+        led_status = !led_status;
+
+        sprintln!("Status: {}", led_status);
+
+        sleep.delay_ms(200_u32);
     }
 }
